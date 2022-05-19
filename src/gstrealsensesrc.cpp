@@ -62,6 +62,7 @@ enum
   PROP_CAM_SN,
   PROP_ALIGN,
   PROP_DEPTH_ON,
+  PROP_IR_ON,
   PROP_IMU_ON
 };
 
@@ -158,6 +159,11 @@ gst_realsense_src_class_init (GstRealsenseSrcClass * klass)
         "Enable streaming of depth data",
         StreamType::StreamColor, StreamType::StreamMux, StreamType::StreamDepth,
         (GParamFlags)(G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
+  
+  g_object_class_install_property (gobject_class, PROP_IR_ON,
+    g_param_spec_boolean ("ir-on", "Enable IR emissions",
+        "Enable IR emissions", false,
+        (GParamFlags)(G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
 
   g_object_class_install_property (gobject_class, PROP_IMU_ON,
     g_param_spec_boolean ("imu-on", "Enable IMU",
@@ -210,6 +216,9 @@ gst_realsense_src_set_property (GObject * object, guint prop_id, const GValue * 
     case PROP_IMU_ON:
       src->imu_on = g_value_get_boolean(value);
       break;
+    case PROP_IR_ON:
+      src->ir_on = g_value_get_boolean(value);
+      break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
       break;
@@ -233,6 +242,9 @@ gst_realsense_src_get_property (GObject * object, guint prop_id, GValue * value,
       break;
     case PROP_IMU_ON:
       g_value_set_boolean(value, src->imu_on);
+      break;
+    case PROP_IR_ON:
+      g_value_set_boolean(value, src->ir_on);
       break;
     default:
       G_OBJECT_WARN_INVALID_PROPERTY_ID (object, prop_id, pspec);
@@ -487,12 +499,15 @@ gst_realsense_src_start (GstBaseSrc * basesrc)
 
       cfg.enable_stream(RS2_STREAM_ACCEL, RS2_FORMAT_MOTION_XYZ32F);      
       cfg.enable_stream(RS2_STREAM_GYRO, RS2_FORMAT_MOTION_XYZ32F);
-      cfg.enable_stream(RS2_STREAM_COLOR, RS2_FORMAT_RGB8);
+      cfg.enable_stream(RS2_STREAM_COLOR, RS2_FORMAT_RGBA8);
       cfg.enable_stream(RS2_STREAM_DEPTH, RS2_FORMAT_Z16);
+      
       // auto profile = src->rs_pipeline->get_active_profile();
       // auto streams = profile.get_streams();     
       // auto s0 = streams[0].get();
-           
+
+     
+        
       switch(src->align)
       {
         case Align::None:
@@ -509,6 +524,14 @@ gst_realsense_src_start (GstBaseSrc * basesrc)
 
       src->rs_pipeline->start(cfg);
       src->has_imu = check_imu_is_supported(src->rs_pipeline->get_active_profile().get_device());
+
+      auto sensor = src->rs_pipeline->get_active_profile().get_device().first<rs2::depth_sensor>();
+      if(src->ir_on){
+          sensor.set_option(RS2_OPTION_EMITTER_ENABLED, 1);
+      }
+      else{
+          sensor.set_option(RS2_OPTION_EMITTER_ENABLED, 0);
+      }   
 
       GST_LOG_OBJECT(src, "RealSense pipeline started");
 

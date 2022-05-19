@@ -81,6 +81,7 @@ struct _GstRealsenseSrc
   guint64 serial_number = 0;
   StreamType stream_type = StreamType::StreamDepth;
   bool imu_on = true;
+  bool ir_on = true;
 };
 
 struct _GstRealsenseSrcClass 
